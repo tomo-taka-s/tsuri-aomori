@@ -187,3 +187,14 @@ footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 1
 .terms dt:first-child { margin-top: 0; }
 .terms dd { margin: 3px 0 0; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
 .terms dd b { color: var(--ink); }
+
+/* ---- ％表示 ---- */
+.pct { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--ink); font-size: 1.12em; }
+.pct.bad { color: #e5484d; }
+.best-star .pct { font-size: 17px; margin-right: 2px; }
+.rank-star { line-height: 1.25; }
+.rank-star .pct { font-size: 18px; }
+.tl .st { min-width: 92px; }
+.tl .st .pct { font-size: 15px; }
+.wd .pc { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: -1px; }
+.wd .s { font-size: 11px; }

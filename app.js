@@ -11,6 +11,8 @@
   function mdw(ms) { var p = parts(ms); return p.m + '月' + p.d + '日(' + WD[p.w] + ')'; }
   function mdhm(ms) { var p = parts(ms); return p.m + '/' + p.d + ' ' + pad(p.H) + ':' + pad(p.M); }
   function stars(n) { return '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n); }
+  // 釣れやすさ指数(0〜1)を％表示。釣れる確率ではなく、条件の良さの目安。★は 81%〜=★5 / 66〜80=★4 / 51〜65=★3 / 36〜50=★2 / 〜35=★1
+  function pct(v) { return Math.round(Math.max(0, Math.min(1, v)) * 100) + '%'; }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
   var state = { spot: SPOTS[0], day: todayMid(), sp: 'all', wx: null, wxNote: 'none', loading: false, mshift: 0 };
@@ -168,7 +170,7 @@
       if (r.windy) sub.push('風波やや強い予報');
       return '<button class="mrow" data-day="' + r.day + '"><span class="mrank r' + (i + 1) + '">' + (i + 1) + '</span>' +
              '<span class="mmain"><span class="mdate">' + p.m + '/' + p.d + '(' + WD[p.w] + ')　<span class="mtype' + (r.tt.type === '大潮' ? ' oo' : '') + '">' + r.tt.type + '</span></span>' +
-             '<span class="msub">' + esc(sub.join('・')) + '</span></span><span class="rank-star">' + stars(Species.stars(r.ds)) + '</span></button>';
+             '<span class="msub">' + esc(sub.join('・')) + '</span></span><span class="rank-star"><b class="pct">' + pct(r.ds) + '</b><br>' + stars(Species.stars(r.ds)) + '</span></button>';
     }).join('');
     Array.prototype.forEach.call($('monthBest').querySelectorAll('.mrow'), function (b) {
       b.onclick = function () { state.day = +b.getAttribute('data-day'); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
@@ -254,7 +256,7 @@
       if (s.night >= 0.7) why.push('夜');
       var sl = stageLabel(s.rising, s.bun); if (sl) why.push('ピーク付近は' + sl);
       if (s.warn === 1) why.push('風波に注意');
-      html += '<div class="best-item"><div class="best-time">' + hm(a) + '〜' + hm(b) + '</div><div><div class="best-star">' + stars(w.maxStars) + '</div><div class="best-why">' + esc(why.join('・')) + '</div></div></div>';
+      html += '<div class="best-item"><div class="best-time">' + hm(a) + '〜' + hm(b) + '</div><div><div class="best-star"><b class="pct">' + pct(s.score) + '</b> ' + stars(w.maxStars) + '</div><div class="best-why">' + esc(why.join('・')) + '</div></div></div>';
     });
     $('best').innerHTML = html;
   }
@@ -277,7 +279,7 @@
       if (r.best && r.sc.warn < 2) sub.push('ベスト ' + r.best);
       if (r.sc.warn === 2) sub.push('荒天注意');
       return '<button class="rank-item' + (r.sp.id === state.sp ? ' sel' : '') + '" data-sp="' + r.sp.id + '"><span class="rank-name">' + esc(r.sp.name) + '</span>' +
-             '<span class="rank-star">' + stars(Species.stars(r.ds)) + '</span><span class="rank-sub">' + esc(sub.join('・')) + '</span></button>';
+             '<span class="rank-star"><b class="pct">' + pct(r.ds) + '</b><br>' + stars(Species.stars(r.ds)) + '</span><span class="rank-sub">' + esc(sub.join('・')) + '</span></button>';
     }).join('');
     Array.prototype.forEach.call($('rank').querySelectorAll('.rank-item'), function (b) { b.onclick = function () { setSpecies(b.getAttribute('data-sp')); window.scrollTo({ top: 0, behavior: 'smooth' }); }; });
   }
@@ -349,7 +351,7 @@
       var col = warn === 2 ? '#e5484d' : n >= 4 ? 'var(--hi)' : n === 3 ? 'var(--mid)' : 'var(--lo)';
       out += '<li class="tl' + (now >= t0 && now < t1 ? ' now' : '') + '"><span class="h">' + pad(h) + ':00</span>' +
              '<span class="bar"><i style="width:' + Math.max(6, Math.round(avg * 100)) + '%;background:' + col + '"></i></span>' +
-             '<span class="st">' + stars(n) + '</span><span class="meta">' + tags.join('') + '</span></li>';
+             '<span class="st"><b class="pct' + (warn === 2 ? ' bad' : '') + '">' + pct(avg) + '</b> ' + stars(n) + '</span><span class="meta">' + tags.join('') + '</span></li>';
     }
     $('timeline').innerHTML = out;
   }
@@ -361,7 +363,7 @@
       var day = base + i * DAY, fs = Tide.fishScoreSlots(state.spot, day, state.spot.lat, state.spot.lon);
       var sc = Species.score(state.spot, fs, state.wx, state.sp, day, Weather), p = parts(day);
       html += '<button class="wd' + (day === state.day ? ' sel' : '') + '" data-day="' + day + '"><div class="d ' + (p.w === 0 ? 'sun' : p.w === 6 ? 'sat' : '') + '">' + p.m + '/' + p.d + '(' + WD[p.w] + ')</div>' +
-              '<div class="t' + (fs.tt.type === '大潮' ? ' oo' : '') + '">' + fs.tt.type + '</div><div class="s">' + stars(Species.stars(Species.dayScore(sc))) + '</div>' +
+              '<div class="t' + (fs.tt.type === '大潮' ? ' oo' : '') + '">' + fs.tt.type + '</div><div class="pc">' + pct(Species.dayScore(sc)) + '</div><div class="s">' + stars(Species.stars(Species.dayScore(sc))) + '</div>' +
               '<div class="w">' + (sc.warn === 2 ? '⚠荒天' : sc.warn === 1 ? '風波注意' : '') + '</div></button>';
     }
     var el = $('week'); el.innerHTML = html;

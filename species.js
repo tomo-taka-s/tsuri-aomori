@@ -85,7 +85,7 @@
     if (eff <= hi) return eff < lo ? 0.88 : 1;
     return Math.max(0.05, 1 - (eff - hi) / (sp.waveMax - hi) * 0.8);
   }
-  function stars(s) { return s > 0.8 ? 5 : s > 0.65 ? 4 : s > 0.5 ? 3 : s > 0.35 ? 2 : 1; }
+  function stars(s) { var r = Math.round(s * 100); return r > 80 ? 5 : r > 65 ? 4 : r > 50 ? 3 : r > 35 ? 2 : 1; }   // 画面の％（四捨五入）と食い違わないように
 
   /* fs: Tide.fishScoreSlots の結果 / wx: 取得済みの天気データ(無ければ null) */
   function score(spot, fs, wx, spId, day, W) {
