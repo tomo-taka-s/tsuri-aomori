@@ -21,6 +21,59 @@
     var sp0 = localStorage.getItem('tsuri.sp'); if (sp0 && (sp0 === 'all' || Species.LIST.some(function (s) { return s.id === sp0; }))) state.sp = sp0;
   } catch (e) {}
 
+  /* ---------- 潮時・潮位の微調整（釣り場ごとに保存） ---------- */
+  state.adj = {};
+  try { var a0 = localStorage.getItem('tsuri.adj'); if (a0) state.adj = JSON.parse(a0) || {}; } catch (e) { state.adj = {}; }
+  function getAdj() { var a = state.adj[state.spot.id] || {}; return { dt: a.dt || 0, dz: a.dz || 0 }; }
+  function ts() {                                                  // 補正を反映した釣り場（潮の計算に使う）
+    var a = getAdj(); if (!a.dt && !a.dz) return state.spot;
+    return Object.assign({}, state.spot, { dt: a.dt, dz: a.dz });
+  }
+  function bumpAdj(kind, v) {
+    var a = getAdj();
+    if (kind === 'reset') a = { dt: 0, dz: 0 };
+    else { var lim = kind === 'dt' ? 180 : 60; a[kind] = Math.max(-lim, Math.min(lim, a[kind] + v)); }
+    if (!a.dt && !a.dz) delete state.adj[state.spot.id]; else state.adj[state.spot.id] = a;
+    try { localStorage.setItem('tsuri.adj', JSON.stringify(state.adj)); } catch (e) {}
+    render();
+  }
+  function sgn(n, u) { return (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n) + u; }
+  function renderAdj() {
+    var a = getAdj();
+    function row(label, kind, steps, u) {
+      return '<div class="adj-row"><span class="adj-l">' + label + '</span>' + steps.map(function (v) {
+        return '<button data-k="' + kind + '" data-v="' + v + '">' + sgn(v, u) + '</button>'; }).join('') + '</div>';
+    }
+    $('adjBox').innerHTML = row('潮の時刻（＋で遅く）', 'dt', [-10, -5, 5, 10], '分') + row('潮位（＋で高く）', 'dz', [-10, -5, 5, 10], 'cm') +
+      '<div class="adj-cur">いまの補正：時刻 ' + sgn(a.dt, '分') + '／潮位 ' + sgn(a.dz, 'cm') + '　<button data-k="reset" data-v="0" class="adj-reset">リセット</button></div>';
+  }
+  $('adjBox').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-k]') : null;
+    if (b) bumpAdj(b.getAttribute('data-k'), +b.getAttribute('data-v'));
+  });
+
+  /* ---------- いまの潮（リアルタイム） ---------- */
+  function renderNow() {
+    var el = $('nowBox'), now = Date.now(), sp = ts();
+    if (state.day !== todayMid()) { el.innerHTML = '<div class="now-off">「今日」を表示すると、いまの潮位が出ます。</div>'; return; }
+    var h = Tide.tideHeight(sp, now), st = Tide.stageAt(sp, now), ex = Tide.extremes(sp, now, now + 30 * 3600000), nx = ex.length ? ex[0] : null;
+    var html = '<div class="now-main"><span class="now-t">' + hm(now) + ' 現在</span><span class="now-h">' + Math.round(h) + '<small>cm</small></span>';
+    if (st) html += '<span class="now-s ' + (st.rising ? 'up' : 'down') + '">' + (st.rising ? '上げ潮' : '下げ潮') + '（' + stageLabel(st.rising, st.bun) + '）</span>';
+    html += '</div>';
+    if (nx) {
+      var rem = Math.max(0, Math.round((nx.t - now) / 60000));
+      html += '<div class="now-next">次の' + (nx.type === 'high' ? '満潮' : '干潮') + '　' + hm(nx.t) + '（あと' + (rem >= 60 ? Math.floor(rem / 60) + '時間' : '') + (rem % 60) + '分）　' + Math.round(nx.h) + 'cm</div>';
+    }
+    var w = state.wx ? Weather.at(state.wx, now) : null;
+    if (w && w.pres != null) {
+      var dz = Math.round(1013 - w.pres);
+      html += '<div class="now-p">気圧 ' + Math.round(w.pres) + 'hPa：' + (Math.abs(dz) < 3 ? '潮位への影響はほぼなし' : '予測より約' + Math.abs(dz) + 'cm' + (dz > 0 ? '高め' : '低め') + 'になる目安（グラフには含めていません）') + '</div>';
+    }
+    var a = getAdj();
+    if (a.dt || a.dz) html += '<div class="now-adj">微調整中：時刻 ' + sgn(a.dt, '分') + '／潮位 ' + sgn(a.dz, 'cm') + '</div>';
+    el.innerHTML = html;
+  }
+
   /* ---------- 地点・日付の操作 ---------- */
   (function buildSelect() {
     var sel = $('spot'), groups = {}, order = [];
@@ -145,13 +198,13 @@
   function renderMonth() {
     var mo = monthDays(state.mshift), today = todayMid();
     $('monthTitle').textContent = mo.m + '月のベスト3（' + state.spot.name + '・' + Species.byId(state.sp).name + '）';
-    var key = [state.spot.id, state.sp, mo.y, mo.m, today, state.wx ? state.wx.at : 0].join('|'), rows = monthCache[key];
+    var key = [state.spot.id, state.sp, mo.y, mo.m, today, state.wx ? state.wx.at : 0, getAdj().dt, getAdj().dz].join('|'), rows = monthCache[key];
     if (!rows) {
       rows = [];
       for (var i = 0; i < mo.n; i++) {
         var day = mo.first + i * DAY;
         if (day < today) continue;                                   // 過ぎた日は対象外
-        var fs = Tide.fishScoreSlots(state.spot, day, state.spot.lat, state.spot.lon);
+        var fs = Tide.fishScoreSlots(ts(), day, state.spot.lat, state.spot.lon);
         var base = Species.score(state.spot, fs, null, state.sp, day, Weather);          // 潮・時期・時間帯だけ（全日同じ条件で比べる）
         var wxs = state.wx ? Species.score(state.spot, fs, state.wx, state.sp, day, Weather) : null;
         var inFc = !!(wxs && wxs.hasWx);                              // 予報のある日だけ天気を見る
@@ -328,7 +381,7 @@
     var now = Date.now();
     if (now >= state.day && now < state.day + DAY) {
       var nx = X(now);
-      g += '<line x1="' + nx + '" x2="' + nx + '" y1="' + T + '" y2="' + (by + 14) + '" stroke="#e5484d" stroke-width="1.6"/><circle cx="' + nx + '" cy="' + Y(Tide.tideHeight(state.spot, now)) + '" r="4" fill="#e5484d"/>';
+      g += '<line x1="' + nx + '" x2="' + nx + '" y1="' + T + '" y2="' + (by + 14) + '" stroke="#e5484d" stroke-width="1.6"/><circle cx="' + nx + '" cy="' + Y(Tide.tideHeight(ts(), now)) + '" r="4" fill="#e5484d"/>';
     }
     $('chartWrap').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="潮位グラフ">' + g + '</svg>';
   }
@@ -360,7 +413,7 @@
   function renderWeek() {
     var base = todayMid(), html = '';
     for (var i = 0; i < 7; i++) {
-      var day = base + i * DAY, fs = Tide.fishScoreSlots(state.spot, day, state.spot.lat, state.spot.lon);
+      var day = base + i * DAY, fs = Tide.fishScoreSlots(ts(), day, state.spot.lat, state.spot.lon);
       var sc = Species.score(state.spot, fs, state.wx, state.sp, day, Weather), p = parts(day);
       html += '<button class="wd' + (day === state.day ? ' sel' : '') + '" data-day="' + day + '"><div class="d ' + (p.w === 0 ? 'sun' : p.w === 6 ? 'sat' : '') + '">' + p.m + '/' + p.d + '(' + WD[p.w] + ')</div>' +
               '<div class="t' + (fs.tt.type === '大潮' ? ' oo' : '') + '">' + fs.tt.type + '</div><div class="pc">' + pct(Species.dayScore(sc)) + '</div><div class="s">' + stars(Species.stars(Species.dayScore(sc))) + '</div>' +
@@ -379,13 +432,15 @@
 
   /* ---------- 全体 ---------- */
   function render() {
-    var d = compute(state.spot, state.day, state.sp), p = parts(state.day);
+    var d = compute(ts(), state.day, state.sp), p = parts(state.day);
     var diff = Math.round((state.day - todayMid()) / DAY), rel = diff === 0 ? '今日' : diff > 0 ? diff + '日後' : (-diff) + '日前';
     $('dateLabel').innerHTML = p.y + '年' + mdw(state.day) + '<small>' + rel + '</small>';
-    renderWeek(); renderChips(); renderSpInfo(d); renderMonth(); renderWarn(d); renderSummary(d); renderWx(); renderBest(d); renderRank(d); renderChart(d); renderTimeline(d); accNote();
+    renderWeek(); renderChips(); renderSpInfo(d); renderMonth(); renderWarn(d); renderSummary(d); renderWx(); renderBest(d); renderRank(d); renderChart(d); renderNow(); renderAdj(); renderTimeline(d); accNote();
   }
   loadWx();
-  setInterval(function () { if (state.day === todayMid() && !document.hidden) render(); }, 60000);
+  // 今日を見ている間は、潮位グラフの赤線と「いま」の表示を動かし続ける
+  setInterval(function () { if (state.day === todayMid() && !document.hidden) render(); }, 30000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) render(); });   // アプリに戻ったらすぐ現在時刻に合わせる
 
   /* ---------- インストール ---------- */
   var deferred = null;
@@ -393,5 +448,12 @@
     e.preventDefault(); deferred = e; $('installBtn').hidden = false; $('install').open = true;
   });
   $('installBtn').onclick = function () { if (deferred) { deferred.prompt(); deferred = null; $('installBtn').hidden = true; } };
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {});
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    var hadController = !!navigator.serviceWorker.controller;           // 初回インストール時は知らせない
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) reg.update().catch(function () {}); });   // アプリに戻るたびに新しい版を確認
+    }).catch(function () {});
+    navigator.serviceWorker.addEventListener('controllerchange', function () { if (hadController) $('updBar').hidden = false; });
+    $('updBtn').onclick = function () { location.reload(); };
+  }
 })();

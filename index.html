@@ -73,8 +73,14 @@
 
   <section class="card">
     <h2>潮位グラフ</h2>
+    <div id="nowBox" class="nowbox" aria-live="polite"></div>
     <div id="chartWrap"></div>
-    <p class="legend"><span class="dot hi"></span>釣れやすい <span class="dot lo"></span>普通 <span class="dot no"></span>低め　<span class="sun">日の出・日の入り</span>は縦線</p>
+    <p class="legend"><span class="dot hi"></span>釣れやすい <span class="dot lo"></span>普通 <span class="dot no"></span>低め　<span class="sun">日の出・日の入り</span>は縦線、赤線は現在時刻</p>
+    <details class="adj">
+      <summary>実際の潮と合わないとき（潮時・潮位の微調整）</summary>
+      <p class="adj-help">現地の潮見表や堤防の目盛りと比べてずれているときに、この釣り場の分だけ合わせて保存できます。</p>
+      <div id="adjBox"></div>
+    </details>
   </section>
 
   <section class="card">
@@ -107,7 +113,8 @@
   <section class="card notes">
     <h2>この数字について</h2>
     <ul>
-      <li>潮位は気象庁が公表している調和定数（主要4分潮）から端末内で計算しています。気象庁の推算値と比べて、満潮・干潮の時刻は概ね±20〜30分、潮位は±10cm程度の差が出ます。</li>
+      <li>潮位は気象庁が公表している調和定数から端末内で計算しています（主要4分潮に、季節変動と主な小分潮を加えています）。気象庁の推算値（2026年の1・4・7・10月）と比べて、八戸港は差が約2〜3cm（最大6cm）、下北は約1cm以内でした。他の港は近い観測点の定数で補った推定のため、港の奥や入り江では満干の時刻や高さがずれることがあります。ずれるときは、グラフの下の「微調整」で合わせられます。</li>
+      <li>気象庁の推算値と同じく、台風・低気圧・強風による潮位の上下は含みません。気圧が低いと、目安として1hPaあたり約1cm高くなります（画面の「いま」に気圧からの目安を出しています）。</li>
       <li id="accNote"></li>
       <li>天気・風は Open-Meteo の予報、波と水温は同サービスの海況モデルの値です。波と水温は広域モデルのため、湾内・港の奥では取れなかったり、実際と違ったりします。取れない項目は「データなし」とし、推定値は入れていません。風向きによる向き不向きは含んでいません。</li>
       <li>魚種別の「時期」「適水温」「向いている地形」は、一般的な釣りの知識から置いた初期値で、青森の釣果データで検証したものではありません。実際の釣果と合わないときは、species.js の表を直せます。</li>
@@ -128,8 +135,12 @@
     </details>
   </section>
 
-  <footer>調和定数：気象庁「潮位表掲載地点一覧表（2024年）」／天気・波・水温：Open-Meteo</footer>
+  <footer>調和定数：気象庁「潮位表掲載地点一覧表（2024年）」／天気・波・水温：Open-Meteo<br>アプリの版：v8（潮位計算：2026-11-04 修正版）</footer>
 </main>
+
+<div id="updBar" class="updbar" hidden>
+  <span>新しい版があります</span><button id="updBtn" type="button">更新する</button>
+</div>
 
 <script src="tide.js"></script>
 <script src="weather.js"></script>
