@@ -21,6 +21,9 @@
     var sp0 = localStorage.getItem('tsuri.sp'); if (sp0 && (sp0 === 'all' || Species.LIST.some(function (s) { return s.id === sp0; }))) state.sp = sp0;
   } catch (e) {}
 
+  state.tf = 'all';
+  try { var tf0 = localStorage.getItem('tsuri.tf'); if (tf0 === 'good' || tf0 === 'day') state.tf = tf0; } catch (e) {}
+
   /* ---------- 潮時・潮位の微調整（釣り場ごとに保存） ---------- */
   state.adj = {};
   try { var a0 = localStorage.getItem('tsuri.adj'); if (a0) state.adj = JSON.parse(a0) || {}; } catch (e) { state.adj = {}; }
@@ -387,11 +390,29 @@
   }
 
   /* ---------- 描画: 時系列 ---------- */
+  var TF = [['all', 'すべて'], ['good', '★3以上'], ['day', '日中のみ']];
+  function renderTfilter() {
+    $('tfilter').innerHTML = TF.map(function (f) {
+      return '<button data-tf="' + f[0] + '" class="' + (state.tf === f[0] ? 'sel' : '') + '" aria-pressed="' + (state.tf === f[0]) + '">' + f[1] + '</button>';
+    }).join('');
+  }
+  $('tfilter').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-tf]') : null; if (!b) return;
+    state.tf = b.getAttribute('data-tf'); try { localStorage.setItem('tsuri.tf', state.tf); } catch (err) {}
+    renderTfilter(); renderTimeline(lastD);
+  });
+  var lastD = null;
   function renderTimeline(d) {
-    var sl = d.sc.slots, sun = d.fs.sun, out = '', now = Date.now();
+    lastD = d;
+    var sl = d.sc.slots, sun = d.fs.sun, out = '', now = Date.now(), shown = 0, bh = {};
+    bestWindows(sl).forEach(function (w) { for (var i = w.a; i <= w.b; i++) bh[Math.floor(i / 2)] = 1; });     // ベストの時間帯に入っている時間
     for (var h = 0; h < 24; h++) {
       var a = sl[2 * h], b = sl[2 * h + 1], avg = (a.score + b.score) / 2, n = Species.stars(avg), top = a.score >= b.score ? a : b;
       var t0 = state.day + h * 3600000, t1 = t0 + 3600000, tags = [];
+      if (state.tf === 'good' && n < 3) continue;
+      if (state.tf === 'day' && (t1 <= sun.rise - 30 * 60000 || t0 >= sun.set + 30 * 60000)) continue;
+      shown++;
+      if (bh[h]) tags.push('<span class="tag b">ベスト</span>');
       var mz = mazumeLabel(t0 + 1800000, sun); if (mz) tags.push('<span class="tag m">' + mz + '</span>');
       var hasEx = d.ex.some(function (e) { return e.t >= t0 && e.t < t1; });
       var lab = hasEx ? '' : stageLabel(top.rising, top.bun); if (lab) tags.push('<span class="tag t">' + lab + '</span>');
@@ -402,11 +423,25 @@
       if (warn === 2) tags.push('<span class="tag d">荒天注意</span>'); else if (warn === 1) tags.push('<span class="tag d">風波やや強い</span>');
       var wt = wxText(a.w); if (wt) tags.push('<span class="tag w">' + esc(wt) + '</span>');
       var col = warn === 2 ? '#e5484d' : n >= 4 ? 'var(--hi)' : n === 3 ? 'var(--mid)' : 'var(--lo)';
-      out += '<li class="tl' + (now >= t0 && now < t1 ? ' now' : '') + '"><span class="h">' + pad(h) + ':00</span>' +
+      out += '<li class="tl' + (now >= t0 && now < t1 ? ' now' : '') + (bh[h] ? ' best' : '') + '"><span class="h">' + pad(h) + ':00</span>' +
              '<span class="bar"><i style="width:' + Math.max(6, Math.round(avg * 100)) + '%;background:' + col + '"></i></span>' +
              '<span class="st"><b class="pct' + (warn === 2 ? ' bad' : '') + '">' + pct(avg) + '</b> ' + stars(n) + '</span><span class="meta">' + tags.join('') + '</span></li>';
     }
-    $('timeline').innerHTML = out;
+    $('timeline').innerHTML = shown ? out : '<li class="empty">この条件に当てはまる時間はありません。</li>';
+  }
+
+  /* ---------- 描画: ひと目カード（その日の総合評価） ---------- */
+  function renderHero(d) {
+    var sc = d.sc, ds = Species.dayScore(sc), n = Species.stars(ds), sp = sc.sp, storm = 0;
+    sc.slots.forEach(function (s) { if (s.warn === 2) storm++; });
+    var off = storm >= 12;                                             // 半日（6時間）以上が荒天
+    var verdict = off ? '荒天のため見送り推奨' : (sp.id !== 'all' && sc.season < 0.25) ? '時期外れ（釣りにくい魚です）' :
+                  ['', '厳しい', 'やや厳しい', 'まずまず', '狙い目', '絶好のコンディション'][n];
+    var cls = off ? 'bad' : n >= 4 ? 'good' : n === 3 ? 'mid' : 'low';
+    var diff = Math.round((state.day - todayMid()) / DAY), rel = diff === 0 ? '今日' : diff > 0 ? diff + '日後' : (-diff) + '日前';
+    $('hero').innerHTML = '<div class="hero-top"><div class="hero-pct ' + cls + '">' + pct(ds) + '</div><div class="hero-r">' +
+      '<div class="hero-verdict ' + cls + '">' + esc(verdict) + '</div><div class="hero-stars">' + stars(n) + '</div></div></div>' +
+      '<div class="hero-sub">' + mdw(state.day) + '（' + rel + '）・' + esc(state.spot.name) + '・' + esc(sp.name) + '　<span class="hero-note">その日いちばん良い3時間の目安</span></div>';
   }
 
   /* ---------- 描画: 7日間 ---------- */
@@ -435,7 +470,7 @@
     var d = compute(ts(), state.day, state.sp), p = parts(state.day);
     var diff = Math.round((state.day - todayMid()) / DAY), rel = diff === 0 ? '今日' : diff > 0 ? diff + '日後' : (-diff) + '日前';
     $('dateLabel').innerHTML = p.y + '年' + mdw(state.day) + '<small>' + rel + '</small>';
-    renderWeek(); renderChips(); renderSpInfo(d); renderMonth(); renderWarn(d); renderSummary(d); renderWx(); renderBest(d); renderRank(d); renderChart(d); renderNow(); renderAdj(); renderTimeline(d); accNote();
+    renderWeek(); renderChips(); renderSpInfo(d); renderMonth(); renderHero(d); renderWarn(d); renderSummary(d); renderWx(); renderBest(d); renderRank(d); renderChart(d); renderNow(); renderAdj(); renderTfilter(); renderTimeline(d); accNote();
   }
   loadWx();
   // 今日を見ている間は、潮位グラフの赤線と「いま」の表示を動かし続ける
