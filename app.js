@@ -135,7 +135,7 @@
     var out = [], ci = Weather.codeInfo(w.code);
     if (w.code != null) out.push(ci.i + ci.t);
     if (w.temp != null) out.push(Math.round(w.temp) + '℃');
-    if (w.wind != null) out.push('風' + Weather.dirName(w.dir) + ' ' + w.wind.toFixed(1) + 'm/s');
+    if (w.wind != null) out.push('風' + Weather.dirName(w.dir) + ' ' + w.wind.toFixed(1) + 'm/s' + (w.gust != null && w.gust - w.wind >= 2 ? '（瞬間' + w.gust.toFixed(0) + '）' : ''));
     if (w.wave != null) out.push('波' + w.wave.toFixed(1) + 'm');
     if (w.precip != null && w.precip >= 0.1) out.push('雨' + w.precip.toFixed(1) + 'mm');
     return out.join('　');
