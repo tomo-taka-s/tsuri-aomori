@@ -1,6 +1,6 @@
 /* オフライン対応: 一度開けば、電波のない釣り場でも使えます */
-var CACHE = 'tsuri-aomori-v12';
-var FILES = ['./', './index.html', './style.css', './app.js', './tide.js', './weather.js', './species.js', './spots.js',
+var CACHE = 'tsuri-aomori-v13';
+var FILES = ['./', './index.html', './style.css', './app.js', './tide.js', './weather.js', './amedas.js', './species.js', './spots.js',
              './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {

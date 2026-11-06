@@ -467,11 +467,35 @@
   }
 
   /* ---------- 全体 ---------- */
+  /* ---------- いまの実測（アメダス）。今日を見ているときだけ。取れなければ出さない ---------- */
+  var obs = { spot: null, at: 0, busy: false, d: null };
+  function loadObs() {
+    if (typeof Amedas === 'undefined' || obs.busy) return;
+    if (obs.spot === state.spot.id && Date.now() - obs.at < 5 * 60000) return;
+    var sid = state.spot.id; obs.busy = true;
+    Amedas.nearest(state.spot).then(function (d) { obs = { spot: sid, at: Date.now(), busy: false, d: d }; },
+                                    function () { obs = { spot: sid, at: Date.now(), busy: false, d: null }; })
+      .then(function () { if (sid === state.spot.id) renderObs(); });
+  }
+  function renderObs() {
+    var el = $('obs'); if (!el) return;
+    var o = obs.spot === state.spot.id ? obs.d : null;
+    if (!o || state.day !== todayMid()) { el.hidden = true; el.innerHTML = ''; return; }
+    var ago = Math.max(0, Math.round((Date.now() - o.t) / 60000)), f = Weather.at(state.wx, Date.now()), parts = [];
+    parts.push('風 ' + (o.calm ? '静穏' : esc(o.dir || '') + ' ' + o.wind.toFixed(1) + 'm/s'));
+    if (o.temp != null) parts.push('気温 ' + o.temp.toFixed(1) + '℃');
+    var cmp = '';
+    if (f && f.wind != null && !o.calm) { var df = f.wind - o.wind; cmp = '<div class="obs-cmp">予報の風 ' + f.wind.toFixed(1) + 'm/s（実測との差 ' + (df >= 0 ? '+' : '') + df.toFixed(1) + '）</div>'; }
+    el.hidden = false;
+    el.innerHTML = '<div class="obs-h">いまの実測（アメダス ' + esc(o.name) + '・約' + Math.round(o.km) + 'km・' + ago + '分前）</div><div class="obs-v">' + parts.join('　') + '</div>' + cmp +
+      '<div class="obs-n">観測点は釣り場と同じ場所ではありません。岬の先や港の奥では風が違います。</div>';
+  }
+
   function render() {
     var d = compute(ts(), state.day, state.sp), p = parts(state.day);
     var diff = Math.round((state.day - todayMid()) / DAY), rel = diff === 0 ? '今日' : diff > 0 ? diff + '日後' : (-diff) + '日前';
     $('dateLabel').innerHTML = p.y + '年' + mdw(state.day) + '<small>' + rel + '</small>';
-    renderWeek(); renderChips(); renderSpInfo(d); renderMonth(); renderHero(d); renderWarn(d); renderSummary(d); renderWx(); renderBest(d); renderRank(d); renderChart(d); renderNow(); renderAdj(); renderTfilter(); renderTimeline(d); accNote();
+    renderWeek(); renderChips(); renderSpInfo(d); renderMonth(); renderHero(d); renderWarn(d); renderSummary(d); renderWx(); renderBest(d); renderRank(d); renderChart(d); renderNow(); renderAdj(); renderTfilter(); renderTimeline(d); accNote(); renderObs(); loadObs();
   }
   loadWx();
   // 今日を見ている間は、潮位グラフの赤線と「いま」の表示を動かし続ける

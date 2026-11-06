@@ -250,3 +250,11 @@ footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 1
 .tl.best { box-shadow: inset 3px 0 0 #0a7a5c; }
 .timeline .empty { padding: 14px 4px; color: var(--muted); list-style: none; }
 @media (prefers-color-scheme: dark) { .hero .good { color: #6fe0bd; } .hero .mid { color: #f0c36a; } .hero .bad { color: #ff9a9f; } .tag.b { background: #1f8f70; } }
+
+/* v13: いまの実測 */
+.obsbox { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--sea-soft); }
+.obs-h { font-size: 12px; color: var(--muted); font-weight: 700; }
+.obs-v { font-size: 20px; font-weight: 800; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.obs-cmp { font-size: 13px; margin-top: 2px; }
+.obs-n { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.obsbox[hidden] { display: none; }
