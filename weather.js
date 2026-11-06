@@ -91,9 +91,14 @@
   }
   function at(d, ms) {
     if (!d) return null;
+    var w0 = lerp(d.fc, 'wind_speed_10m', ms), g0 = lerp(d.fc, 'wind_gusts_10m', ms);
+    /* 予報の平均風速は強風時に実際より弱く出やすい（2026-11-06 青森：予報5.7m/s・瞬間19に対しアメダス12.8m/s）。
+       瞬間風速の7割を下限にして補正する（species.js の判定と同じ考え方）。元の値は windRaw */
+    var wAdj = w0 == null ? w0 : (g0 == null ? w0 : Math.max(w0, g0 * 0.7));
     return {
+      windRaw: w0,
       temp: lerp(d.fc, 'temperature_2m', ms), precip: lerp(d.fc, 'precipitation', ms), code: lerp(d.fc, 'weather_code', ms, true),
-      wind: lerp(d.fc, 'wind_speed_10m', ms), dir: lerp(d.fc, 'wind_direction_10m', ms, true), gust: lerp(d.fc, 'wind_gusts_10m', ms),
+      wind: wAdj, dir: lerp(d.fc, 'wind_direction_10m', ms, true), gust: g0,
       pres: lerp(d.fc, 'pressure_msl', ms),
       wave: lerp(d.wave, 'wave_height', ms), wperiod: lerp(d.wave, 'wave_period', ms), sst: lerp(d.sst, 'sea_surface_temperature', ms)
     };
