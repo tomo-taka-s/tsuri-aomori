@@ -298,6 +298,7 @@
     if (state.wx && state.wx.wave && state.wx.wave.status !== 'ok') miss.push('波');
     if (state.wx && state.wx.sst && state.wx.sst.status !== 'ok') miss.push('水温');
     if (state.wx && state.wx.fc && state.wx.fc.status !== 'ok') miss.push('天気・風');
+    if (state.wx && state.wx.fc && state.wx.fc.status === 'ok') st += state.wx.fc.model === 'jma' ? '（風・天気：気象庁モデル）' : '（風・天気：標準モデル）';
     $('wxStat').innerHTML = esc(st) + (miss.length ? '<span class="miss">この釣り場では「' + miss.join('・') + '」のデータが取れませんでした（湾内などでは起こります）。その分は判定に入れていません。</span>' : '');
   }
 

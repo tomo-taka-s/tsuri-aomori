@@ -35,19 +35,39 @@
     return getJSON(url).then(function (j) { return pack(j, keys); }, function () { return { status: 'error' }; });
   }
 
-  function key(spot) { return 'tsuri.wx.' + spot.id; }
+  function key(spot) { return 'tsuri.wx2.' + spot.id; }
   function cached(spot) {
     try { var s = localStorage.getItem(key(spot)); return s ? JSON.parse(s) : null; } catch (e) { return null; }
   }
   function isFresh(d) { return d && Date.now() - d.at < MAX_AGE; }
 
+  var FCK = ['temperature_2m', 'precipitation', 'weather_code', 'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m', 'pressure_msl'];
+  /* 気象庁モデルの値を優先し、欠けている項目・時刻だけ標準モデルで補う（風は気象庁モデルが取れた分だけ jma と記録） */
+  function mergeFc(r) {
+    var j = r[0], g = r[1];
+    if (j.status !== 'ok') return g;
+    if (g.status !== 'ok') { j.model = 'jma'; return j; }
+    var idx = {}; g.t.forEach(function (t, i) { idx[t] = i; });
+    var out = { status: 'ok', t: j.t, model: 'jma' };
+    FCK.forEach(function (k) {
+      out[k] = j.t.map(function (t, i) {
+        var v = j[k] && j[k][i];
+        if (v != null) return v;
+        var gi = idx[t]; return gi != null && g[k] ? g[k][gi] : null;
+      });
+    });
+    return out;
+  }
+
   function fetchAll(spot) {
     var base = { latitude: spot.lat, longitude: spot.lon, timezone: 'Asia/Tokyo', past_days: 1, forecast_days: 7 };
-    var fcUrl = FC + '?' + qs(Object.assign({ hourly: 'temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl', wind_speed_unit: 'ms' }, base));
+    var fcH = 'temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl';
+    var fcUrl = FC + '?' + qs(Object.assign({ hourly: fcH, wind_speed_unit: 'ms' }, base));                       // 標準（世界モデルの合成）
+    var jmaUrl = FC + '?' + qs(Object.assign({ hourly: fcH, wind_speed_unit: 'ms', models: 'jma_seamless' }, base)); // 気象庁モデル（日本付近は約5km。精度が高い）
     var wvUrl = MR + '?' + qs(Object.assign({ hourly: 'wave_height,wave_direction,wave_period' }, base));
     var sstUrl = MR + '?' + qs(Object.assign({ hourly: 'sea_surface_temperature' }, base));   // 別リクエスト: 片方が失敗しても他方は使える
     return Promise.all([
-      part(fcUrl, ['temperature_2m', 'precipitation', 'weather_code', 'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m', 'pressure_msl']),
+      Promise.all([part(jmaUrl, FCK), part(fcUrl, FCK)]).then(mergeFc),
       part(wvUrl, ['wave_height', 'wave_direction', 'wave_period']),
       part(sstUrl, ['sea_surface_temperature'])
     ]).then(function (r) {
