@@ -1,157 +1,570 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>青森 釣り潮見</title>
-<meta name="description" content="青森県の港・釣り場ごとに、潮・天気・風波・水温と魚種別の釣れやすい時間帯を時系列で表示します。">
-<meta name="theme-color" content="#0b2f45">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="釣り潮見">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="stylesheet" href="style.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<meta name="theme-color" content="#0d1f2d" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="青森釣り" />
+<meta name="description" content="青森県専用の全部入り釣りアプリ。釣果ログ・潮汐と天気・ポイント・魚種図鑑・タックル管理・時合タイマー。" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png" />
+<link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+<title>青森釣りアプリ</title>
+<!-- build: 2026-11-25 brush-up v2 (date-input fixes) -->
+<style>
+  :root{
+    --bg:#f4f1ea; --card:#fffdf8; --card2:#ece7da; --ink:#16242e; --ink2:#4c5d68;
+    --line:#ddd5c3; --accent:#0e6b7a; --accent-ink:#ffffff; --sun:#d94f30; --gold:#b9822e;
+    --good:#1e7d4f; --warn:#b3261e; --chip:#e3ddcd;
+    --shadow:0 1px 3px rgba(22,36,46,.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d1a24; --card:#152836; --card2:#1b3447; --ink:#e9f0f2; --ink2:#a9bcc4;
+      --line:#2b465a; --accent:#2ea3b5; --accent-ink:#06222a; --sun:#ff7a59; --gold:#e0aa4e;
+      --good:#4cc38a; --warn:#ff8a80; --chip:#1e3a4d; --shadow:0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",system-ui,-apple-system,sans-serif;
+    line-height:1.6; padding-bottom:86px;overflow-x:hidden}
+  button,[role="button"],select,summary,input:not([type="checkbox"]){min-height:2.75rem}
+  .wrap{max-width:880px;margin:0 auto;padding:0 16px}
+  /* hero */
+  .hero{position:relative;margin:0 0 14px}
+  .hero img{width:100%;height:190px;object-fit:cover;display:block}
+  .hero .cap{position:absolute;left:0;right:0;bottom:0;padding:26px 16px 10px;color:#fff;
+    background:linear-gradient(transparent,rgba(6,24,34,.78))}
+  .hero h1{margin:0;font-size:1.55rem;letter-spacing:.02em;line-height:1.3}
+  .hero p{margin:2px 0 0;font-size:.86rem;opacity:.92}
+  /* tabs */
+  main section{display:none;padding-top:6px}
+  main section.on{display:block}
+  h2{font-size:1.18rem;margin:18px 0 8px;border-bottom:2px solid var(--accent);padding-bottom:4px}
+  h3{font-size:1rem;margin:14px 0 6px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow);margin:10px 0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .stat{background:var(--card2);border-radius:8px;padding:10px 12px}
+  .stat b{display:block;font-size:1.35rem;line-height:1.25}
+  .stat span{font-size:.78rem;color:var(--ink2)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+  .chip{border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;
+    padding:8px 14px;font-size:.9rem;cursor:pointer;min-height:2.4rem}
+  .chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+  .big{font-size:1.5rem;font-weight:800}
+  .muted{color:var(--ink2);font-size:.86rem}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .grow{flex:1 1 140px;min-width:0}
+  label{font-size:.85rem;font-weight:600;display:block;margin:8px 0 3px}
+  input,select,textarea{width:100%;max-width:100%;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;
+    background:var(--card);color:var(--ink);font-size:16px;font-family:inherit}
+  textarea{min-height:64px}
+  /* 日付入力（iOS Safari のサイズエラー対策: 縮まない/はみ出す/高さが揃わない） */
+  input[type="date"]{display:block;width:100%;max-width:100%;min-width:0;min-height:44px;
+    padding:9px 10px;line-height:1.4;font-size:16px;-webkit-appearance:none;appearance:none}
+  input[type="date"]::-webkit-date-and-time-value{text-align:left;margin:0;min-height:1.4em}
+  input[type="date"]::-webkit-calendar-picker-indicator{margin-left:auto;padding:2px;cursor:pointer}
+  .date-field{flex:1 1 150px;min-width:0}
+  :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+  @media (max-width:420px){
+    .row .grow{flex:1 1 100%}
+    .row{gap:8px}
+  }
+  .btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:10px 18px;
+    font-size:1rem;font-weight:700;cursor:pointer;min-height:2.75rem}
+  .btn.sub{background:var(--card2);color:var(--ink);border:1px solid var(--line)}
+  .btn.danger{background:transparent;color:var(--warn);border:1px solid var(--warn)}
+  .btn.small{padding:6px 12px;font-size:.88rem;min-height:2.25rem}
+  table{width:100%;border-collapse:collapse;font-size:.92rem}
+  th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{color:var(--ink2);font-weight:600;font-size:.8rem}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;background:var(--chip);border-radius:6px;padding:1px 8px;font-size:.76rem;margin-right:4px}
+  .tag.season{background:var(--sun);color:#fff;font-weight:700}
+  .warn{color:var(--warn);font-weight:700}
+  .good{color:var(--good);font-weight:700}
+  details{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:8px 0;background:var(--card)}
+  summary{cursor:pointer;font-weight:700;padding:6px 0}
+  pre{background:var(--card2);border-radius:8px;padding:12px;overflow-x:auto;font-size:.78rem;line-height:1.5;white-space:pre}
+  code{font-family:ui-monospace,Menlo,monospace}
+  ul.check{list-style:none;padding:0;margin:6px 0}
+  ul.check li{padding:9px 10px;border:1px solid var(--line);border-radius:8px;margin:6px 0;background:var(--card);cursor:pointer;min-height:2.75rem;display:flex;align-items:center;gap:10px}
+  ul.check li.done{opacity:.55;text-decoration:line-through}
+  ul.check li::before{content:"○";font-size:1.1rem;color:var(--accent)}
+  ul.check li.done::before{content:"●"}
+  .timer{font-size:2.6rem;font-weight:800;font-variant-numeric:tabular-nums;text-align:center;letter-spacing:.04em}
+  /* bottom nav */
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);
+    border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+  nav.tabs button{flex:1;background:none;border:0;color:var(--ink2);font-size:.72rem;padding:8px 2px 10px;cursor:pointer;min-height:3.4rem}
+  nav.tabs button b{display:block;font-size:1.15rem;line-height:1.2}
+  nav.tabs button[aria-selected="true"]{color:var(--accent);font-weight:700}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:var(--ink);color:var(--bg);
+    padding:10px 18px;border-radius:999px;font-size:.9rem;opacity:0;pointer-events:none;transition:opacity .25s;z-index:30;max-width:92vw;text-align:center}
+  .toast.show{opacity:1}
+  a{color:var(--accent)}
+  .note{font-size:.82rem;color:var(--ink2)}
+  @media (max-width:560px){ .hero img{height:150px} .hero h1{font-size:1.3rem} table{font-size:.85rem} }
+</style>
 </head>
 <body>
-<header class="top">
-  <div class="top-inner">
-    <h1>青森 釣り潮見</h1>
-    <label class="spot-pick">
-      <span class="sr">釣り場を選ぶ</span>
-      <select id="spot" aria-label="釣り場を選ぶ"></select>
-    </label>
-    <div class="daynav">
-      <button id="prev" aria-label="前の日">‹</button>
-      <div id="dateLabel" class="date-label" aria-live="polite"></div>
-      <button id="next" aria-label="次の日">›</button>
-      <button id="today" class="ghost">今日</button>
+
+<header class="hero">
+  <img src="./assets/hero.webp" alt="夜明けの青森の海で防波堤から釣りをする人のイラスト" />
+  <div class="cap">
+    <div class="wrap" style="padding:0">
+      <h1>青森釣りアプリ</h1>
+      <p>青森県専用 ・ 釣果ログ／潮汐と天気／ポイント／図鑑／タックル／タイマー</p>
     </div>
   </div>
 </header>
 
+<div class="wrap">
 <main>
-  <section id="week" class="week" aria-label="7日間の見通し"></section>
 
-  <section class="card" id="speciesCard">
-    <h2>狙う魚</h2>
-    <div id="chips" class="chips" role="tablist"></div>
-    <div id="spInfo" class="sp-info"></div>
-  </section>
+<!-- ============ ホーム ============ -->
+<section id="tab-home" class="on" aria-label="ホーム">
+  <div class="row" style="justify-content:space-between">
+    <div><span id="todayLabel" class="muted"></span><br><span class="big" id="tideType">潮を計算中…</span></div>
+    <div style="text-align:right"><span class="muted">月齢</span><br><b id="moonAge">–</b> <span id="moonName" class="muted"></span></div>
+  </div>
 
-  <section class="card hero" id="heroCard">
-    <div id="hero"></div>
-    <div id="warn"></div>
-    <h3 class="sub-h">ベストの時間帯</h3>
-    <div id="best"></div>
-    <h3 class="sub-h">この日の潮</h3>
-    <div id="summary"></div>
-  </section>
+  <h2>釣り場（青森県内のみ）</h2>
+  <div class="chips" id="spotChips" role="group" aria-label="釣り場を選ぶ"></div>
 
-  <section class="card">
-    <h2>潮位グラフ</h2>
-    <div id="nowBox" class="nowbox" aria-live="polite"></div>
-    <div id="chartWrap"></div>
-    <p class="legend"><span class="dot hi"></span>釣れやすい <span class="dot lo"></span>普通 <span class="dot no"></span>低め　<span class="sun">日の出・日の入り</span>は縦線、赤線は現在時刻</p>
-    <details class="adj">
-      <summary>実際の潮と合わないとき（潮時・潮位の微調整）</summary>
-      <p class="adj-help">現地の潮見表や堤防の目盛りと比べてずれているときに、この釣り場の分だけ合わせて保存できます。</p>
-      <div id="adjBox"></div>
-    </details>
-  </section>
-
-  <section class="card" id="wxCard">
-    <h2>天気・風・波・水温</h2>
-    <div id="obs" class="obsbox" hidden></div>
-    <div id="wx"></div>
-    <p id="wxStat" class="wxstat"></p>
-  </section>
-
-  <section class="card">
-    <div class="tl-head">
-      <h2>時系列（1時間ごと）</h2>
-      <div id="tfilter" class="tfilter" role="group" aria-label="表示する時間帯"></div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <b id="condTitle">コンディション</b><span class="muted" id="condTime"></span>
     </div>
-    <ol id="timeline" class="timeline"></ol>
-  </section>
-
-  <section class="card">
-    <h2 id="rankTitle">魚種別の見通し</h2>
-    <div id="rank"></div>
-  </section>
-
-  <section class="card" id="monthCard">
-    <div class="month-head">
-      <button id="mPrev" aria-label="前の月">‹</button>
-      <h2 id="monthTitle">今月のベスト3</h2>
-      <button id="mNext" aria-label="次の月">›</button>
+    <div class="grid" style="margin-top:10px">
+      <div class="stat"><b id="wTemp">–</b><span>気温</span></div>
+      <div class="stat"><b id="wWeather">–</b><span>天気</span></div>
+      <div class="stat"><b id="wWind">–</b><span>風</span></div>
+      <div class="stat"><b id="wWave">–</b><span>波の高さ</span></div>
+      <div class="stat"><b id="wSun">–</b><span>日の出／日の入り</span></div>
+      <div class="stat"><b id="wMoon">–</b><span>月の輝面率（目安）</span></div>
     </div>
-    <div id="monthBest"></div>
-    <p id="monthNote" class="wxstat"></p>
-  </section>
+    <p class="note" id="condNote">天気と波は Open-Meteo の実データを取得します。潮の種類は月齢からの目安で、公式の潮汐表とは誤差があります。</p>
+    <h3>今日の波の高さ・気温（24時間）</h3>
+    <div id="chart24"></div>
+  </div>
 
-  <section class="card">
-    <details class="terms">
-      <summary>用語の説明（マズメ・上げ下げ・潮回り・★）</summary>
-      <dl>
-        <dt>朝マズメ・夕マズメ</dt>
-        <dd>日の出前後が朝マズメ、日の入り前後が夕マズメ。薄暗い時間帯で、小魚を追って大きな魚が活発にエサを食べるため、一番の時合いとされます。このアプリでは、朝は日の出の約75分前〜105分後、夕は日の入りの約105分前〜75分後です。</dd>
-        <dt>上げ潮・下げ潮</dt>
-        <dd>干潮から満潮に向かって潮位が上がっている間が上げ潮、満潮から干潮に向かって下がっている間が下げ潮です。</dd>
-        <dt>上げ3分・下げ7分など</dt>
-        <dd>上げ潮・下げ潮の進み具合を0〜10で表したものです。上げ3分は、干潮から満潮までの3割ほど進んだところ。下げ7分は、満潮から干潮までの7割ほど進んだところ。満潮は「上げ10分」、干潮は「上げ0分」にあたります。潮は満潮・干潮の直前は動きが緩く、中間で一番速く動きます。上げ3分と下げ7分は、潮が動いて食いが立ちやすい目安としてよく言われます。</dd>
-        <dt>満潮・干潮</dt>
-        <dd>潮位が最も高い時・低い時です。その前後は潮の流れが変わるため、時合いになることがあります。</dd>
-        <dt>大潮・中潮・小潮・長潮・若潮</dt>
-        <dd>月の満ち欠けによる潮の動きの大きさです。<b>大潮</b>は新月・満月の前後で、満干の差が大きく潮がよく動きます。<b>中潮</b>はその次、<b>小潮</b>は満干の差が小さく動きが穏やか、<b>長潮</b>は動きが一番緩い日、<b>若潮</b>は長潮の次の日で、潮が動き出す日です。</dd>
-        <dt>潮位（cm）</dt>
-        <dd>グラフの数値は、潮位表の基準面からの高さです。その港の絶対的な水深ではなく、満潮・干潮の差や増減を見るための目安です。</dd>
-        <dt>★と％の見方</dt>
-        <dd>その時間帯の「釣れやすさ」の目安を、％と★で表しています。<b>％は釣れる確率ではなく</b>、潮・時間帯・時期・水温・風波などの条件がどれだけそろっているかの指数です（100%に近いほど条件が良い）。★は％を5段階にしたもので、81%以上が★5、66〜80%が★4、51〜65%が★3、36〜50%が★2、35%以下が★1です。赤は荒天注意の時間帯です。魚種を選ぶと、その魚の時期・水温・地形に合わせて変わります。日の％は、その日のいちばん良い3時間の平均です。</dd>
-      </dl>
-    </details>
-  </section>
+  <div class="card">
+    <h3 style="margin-top:0">時合タイマー</h3>
+    <div class="timer" id="timerDisp">00:00:00</div>
+    <div class="row" style="justify-content:center">
+      <button class="btn" id="timerStart">スタート</button>
+      <button class="btn sub" id="timerStop">ストップ</button>
+      <button class="btn sub" id="timerReset">リセット</button>
+    </div>
+    <p class="note" style="text-align:center">マズメ（日の出・日の入り前後）と潮止まり前後が狙い目です。上の日の出・日の入り時刻を目安にどうぞ。</p>
+  </div>
 
-  <section class="card notes">
-    <h2>この数字について</h2>
-    <ul>
-      <li>潮位は気象庁が公表している調和定数から端末内で計算しています（主要4分潮に、季節変動と主な小分潮を加えています）。気象庁の推算値（2026年の1・4・7・10月）と比べて、八戸港は差が約2〜3cm（最大6cm）、下北は約1cm以内でした。他の港は近い観測点の定数で補った推定のため、港の奥や入り江では満干の時刻や高さがずれることがあります。ずれるときは、グラフの下の「微調整」で合わせられます。</li>
-      <li>気象庁の推算値と同じく、台風・低気圧・強風による潮位の上下は含みません。気圧が低いと、目安として1hPaあたり約1cm高くなります（画面の「いま」に気圧からの目安を出しています）。</li>
-      <li id="accNote"></li>
-      <li>「いまの実測」は、気象庁のアメダス（釣り場にいちばん近い風の観測点）の最新値です。端末から取得でき、今日を見ているときだけ表示します。取得できないときは出ません。観測点は釣り場と同じ場所ではないため、岬の先・港の奥・堤防の先端とは差が出ます。</li>
-      <li>天気・風は Open-Meteo 経由の気象庁モデル（日本付近は約5km格子）を優先した予報（取れない項目だけ標準モデルで補います）。強風時は予報の平均風速が実際より弱く出やすいため、風速は「瞬間風速の7割」を下限に補正して表示しています（青森で実測と比べ、予報5.7m/s・瞬間19m/sに対しアメダス12.8m/sでした。補正後は約13m/s）。ただし格子の平均値なので、岸壁・岬・港の奥など局地の風とは差が出ます。波と水温は同サービスの海況モデルの値です。波と水温は広域モデルのため、湾内・港の奥では取れなかったり、実際と違ったりします。取れない項目は「データなし」とし、推定値は入れていません。風向きによる向き不向きは含んでいません。</li>
-      <li>魚種別の「時期」「適水温」「向いている地形」は、一般的な釣りの知識から置いた初期値で、青森の釣果データで検証したものではありません。実際の釣果と合わないときは、species.js の表を直せます。</li>
-      <li>「釣れやすさ」は、潮の動き・満干潮前後・マズメ・夜・潮回り・時期・水温・風波から出した目安で、釣果を保証するものではありません。</li>
-      <li>風が強い・波が高い・雷の予報が出ている時間帯は「荒天注意」を出し、★を下げます。無理をせず、ライフジャケットを着用してください。釣行前に気象庁の予報・警報も確認してください。河川でのサケ釣りなどは禁止・規制があります。立入禁止の場所には入らないでください。</li>
-    </ul>
-  </section>
+  <div class="grid">
+    <div class="stat"><b id="sumCount">0</b><span>総釣果（この端末に保存）</span></div>
+    <div class="stat"><b id="sumBest">–</b><span>自己記録（最大サイズ）</span></div>
+    <div class="stat"><b id="sumSpecies">0</b><span>釣った魚種数</span></div>
+  </div>
+</section>
 
-  <section class="card">
-    <details id="install">
-      <summary>ホーム画面に追加してアプリのように使う</summary>
-      <div class="howto">
-        <button id="installBtn" hidden>このアプリをインストール</button>
-        <p><b>iPhone（Safari）</b>：画面下の共有ボタン → 「ホーム画面に追加」</p>
-        <p><b>Android（Chrome）</b>：右上のメニュー → 「アプリをインストール」または「ホーム画面に追加」</p>
-        <p>潮の計算は電波がなくても使えます。天気・波・水温は、最後に取得した値を表示します。</p>
-      </div>
-    </details>
-  </section>
+<!-- ============ 記録 ============ -->
+<section id="tab-log" aria-label="釣果ログ">
+  <h2>釣果を記録</h2>
+  <form id="catchForm" class="card">
+    <div class="row">
+      <div class="grow date-field"><label for="fDate">日付</label><input type="date" id="fDate" required /></div>
+      <div class="grow"><label for="fSpecies">魚種</label><select id="fSpecies"></select></div>
+    </div>
+    <div class="row">
+      <div class="grow"><label for="fSize">サイズ（cm）</label><input type="number" id="fSize" min="0" step="0.1" placeholder="例：35.5" /></div>
+      <div class="grow"><label for="fWeight">重さ（g）</label><input type="number" id="fWeight" min="0" step="1" placeholder="例：620" /></div>
+    </div>
+    <div class="row">
+      <div class="grow"><label for="fSpot">ポイント</label><select id="fSpot"></select></div>
+      <div class="grow"><label for="fBait">エサ／ルアー</label><input type="text" id="fBait" placeholder="例：ワーム 2インチ" /></div>
+    </div>
+    <label for="fTackle">タックル</label><input type="text" id="fTackle" placeholder="例：ライトゲームロッド＋2000番リール" />
+    <label for="fMemo">メモ</label><textarea id="fMemo" placeholder="潮、時間帯、ヒットパターンなど"></textarea>
+    <div style="margin-top:12px"><button class="btn" type="submit">記録を追加</button></div>
+  </form>
 
-  <footer>調和定数：気象庁「潮位表掲載地点一覧表（2024年）」／天気・波・水温：Open-Meteo<br>アプリの版：v13（風：気象庁モデル優先＋強風補正＋アメダス実測）</footer>
+  <h2>釣果一覧</h2>
+  <div class="card" style="padding:10px 14px">
+    <div class="row">
+      <div class="grow date-field"><label for="fltFrom">開始日</label><input type="date" id="fltFrom" /></div>
+      <div class="grow date-field"><label for="fltTo">終了日</label><input type="date" id="fltTo" /></div>
+      <div style="align-self:flex-end"><button class="btn sub small" type="button" id="fltClear">期間をクリア</button></div>
+    </div>
+    <p class="note" style="margin:6px 0 0">期間で釣果一覧を絞り込めます（集計とランキングは全期間の集計です）。開始日だけ・終了日だけでも使えます。</p>
+  </div>
+  <div id="catchList"></div>
+  <h2>魚種別ランキング</h2>
+  <div class="card" id="rankBox"><p class="muted" style="margin:0">まだ記録がありません。</p></div>
+</section>
+
+<!-- ============ ポイント ============ -->
+<section id="tab-spot" aria-label="ポイント">
+  <h2>青森県の釣りポイント</h2>
+  <p class="muted">プリセットは青森県内の8か所のみです。各ポイントの「地図」から場所を確認できます。立入禁止・漁港のルールは現地の表示に従ってください。</p>
+  <div id="presetSpots"></div>
+  <h2>自分のポイント</h2>
+  <form id="mySpotForm" class="card">
+    <div class="row">
+      <div class="grow"><label for="pName">名前</label><input id="pName" required placeholder="例：実家の前の防波堤" /></div>
+      <div class="grow"><label for="pArea">エリア</label><input id="pArea" placeholder="例：青森市" /></div>
+    </div>
+    <div class="row">
+      <div class="grow"><label for="pLat">緯度</label><input id="pLat" type="number" step="any" placeholder="例：40.830" /></div>
+      <div class="grow"><label for="pLon">経度</label><input id="pLon" type="number" step="any" placeholder="例：140.740" /></div>
+    </div>
+    <label for="pMemo">メモ</label><input id="pMemo" placeholder="駐車場、足場、狙える魚など" />
+    <div class="row" style="margin-top:10px">
+      <button class="btn" type="submit">ポイントを追加</button>
+      <button class="btn sub" type="button" id="gpsBtn">現在地を使う</button>
+    </div>
+  </form>
+  <div id="mySpots"></div>
+</section>
+
+<!-- ============ 図鑑 ============ -->
+<section id="tab-guide" aria-label="魚種図鑑と結び方">
+  <h2>魚種図鑑（青森で狙える魚）</h2>
+  <label for="fishSearch">魚種を検索</label>
+  <input id="fishSearch" type="search" placeholder="例：ヒラメ、イカ、根魚…" />
+  <div id="fishList" style="margin-top:10px"></div>
+  <h2>結び方ガイド</h2>
+  <div id="knotList"></div>
+</section>
+
+<!-- ============ タックル ============ -->
+<section id="tab-tackle" aria-label="タックル管理">
+  <h2>タックルボックス</h2>
+  <form id="tackleForm" class="card">
+    <div class="row">
+      <div class="grow"><label for="tName">道具名</label><input id="tName" required placeholder="例：エギングロッド 8.6ft" /></div>
+      <div class="grow"><label for="tKind">種類</label>
+        <select id="tKind"><option>ロッド</option><option>リール</option><option>ライン</option><option>ルアー</option><option>仕掛け</option><option>その他</option></select></div>
+    </div>
+    <div class="row">
+      <div class="grow date-field"><label for="tMaint">最終メンテ日</label><input id="tMaint" type="date" /></div>
+      <div class="grow"><label for="tCycle">メンテ周期（日）</label><input id="tCycle" type="number" min="1" placeholder="例：90" /></div>
+    </div>
+    <div style="margin-top:10px"><button class="btn" type="submit">タックルを追加</button></div>
+  </form>
+  <div id="tackleList"></div>
+  <h2>持ち物チェックリスト</h2>
+  <p class="muted">タップでチェックできます。チェック状態はこの端末に保存されます。</p>
+  <ul class="check" id="checkList"></ul>
+  <button class="btn sub" id="checkReset">チェックを全部外す</button>
+</section>
+
+
+
 </main>
-
-<div id="updBar" class="updbar" hidden>
-  <span>新しい版があります</span><button id="updBtn" type="button">更新する</button>
 </div>
 
-<script src="tide.js"></script>
-<script src="weather.js"></script>
-<script src="amedas.js"></script>
-<script src="species.js"></script>
-<script src="spots.js"></script>
-<script src="app.js"></script>
+<nav class="tabs" aria-label="メニュー">
+  <button data-tab="home" aria-selected="true"><b>⌂</b>ホーム</button>
+  <button data-tab="log" aria-selected="false"><b>✎</b>記録</button>
+  <button data-tab="spot" aria-selected="false"><b>◎</b>ポイント</button>
+  <button data-tab="guide" aria-selected="false"><b>▦</b>図鑑</button>
+  <button data-tab="tackle" aria-selected="false"><b>▤</b>タックル</button>
+</nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ================= データ ================= */
+var SPOTS = [
+  {name:'青森港', area:'青森市・陸奥湾', lat:40.830, lon:140.740, note:'堤防・岸壁。アジ、イワシ、ソイ、メバル。市街地から近く初心者向け。'},
+  {name:'浅虫', area:'青森市浅虫・陸奥湾', lat:40.890, lon:140.860, note:'磯と堤防。アイナメ、ソイ、カレイ。温泉街のすぐそば。'},
+  {name:'八戸港', area:'八戸市・太平洋', lat:40.550, lon:141.510, note:'大規模港湾。サバ、イカ、カレイ、ヒラメ。イカ釣りで有名。'},
+  {name:'大間', area:'下北半島・津軽海峡', lat:41.280, lon:141.250, note:'本州最北端。マグロで有名な海峡の潮流。ソイ、アイナメ、大物狙い。'},
+  {name:'むつ（大湊）', area:'むつ市・陸奥湾', lat:41.240, lon:141.170, note:'陸奥湾奥。カレイ、アイナメ、サケ（季節・要確認）。穏やかな内湾。'},
+  {name:'外ヶ浜（蟹田）', area:'東津軽郡・陸奥湾', lat:41.040, lon:140.640, note:'蟹田川河口周辺。カレイ、チヌ、アイナメ。'},
+  {name:'深浦', area:'西津軽郡・日本海', lat:40.640, lon:139.930, note:'日本海側。マダイ、ヒラメ、アジ。夕日の名所・千畳敷方面。'},
+  {name:'鰺ヶ沢', area:'西津軽郡・日本海', lat:40.780, lon:140.200, note:'その名の通りアジの好漁場。サビキ、ヒラメ、マダイ。'}
+];
+var FISH = [
+  {n:'アイナメ', s:'周年（秋〜春が好期）', season:true, bait:'ワーム、活エサ', how:'根魚の代表。磯・堤防の根回りをスローに探る。'},
+  {n:'クロソイ', s:'秋〜春', season:true, bait:'ワーム、ジグヘッド', how:'夜釣りの主役。堤防の明暗部をただ巻き・リフト＆フォール。'},
+  {n:'メバル', s:'冬〜春', season:true, bait:'小型ワーム、プラグ', how:'メバリング。常夜灯周りを軽量ジグヘッドで。'},
+  {n:'マガレイ', s:'春・秋', season:false, bait:'イソメ、ゴカイ', how:'投げ釣り。砂地を少しずつ引きずる。'},
+  {n:'ヒラメ', s:'秋〜冬', season:true, bait:'活アジ泳がせ、ワーム', how:'サーフ・堤防。ボトムを意識した泳がせやワームのスイミング。'},
+  {n:'マダイ', s:'春・秋', season:false, bait:'タイラバ、カゴ釣り', how:'深浦など日本海側で好調。タイラバの等速巻き。'},
+  {n:'アジ', s:'夏〜秋', season:false, bait:'サビキ、アジング', how:'鰺ヶ沢・青森港。サビキで数釣り、アジングでゲーム性も。'},
+  {n:'サバ', s:'夏〜秋', season:false, bait:'サビキ、ジグ', how:'回遊次第。八戸・青森港で群れが入れば爆釣も。'},
+  {n:'イワシ', s:'夏〜秋', season:false, bait:'サビキ', how:'港内。ファミリー向け。猫や鳥が多い日は回遊のサイン。'},
+  {n:'ヤリイカ', s:'冬〜春', season:true, bait:'エギ、スッテ', how:'陸奥湾・日本海。エギングと浮き釣り。'},
+  {n:'スルメイカ', s:'夏〜秋', season:false, bait:'イカメタル、プラヅノ', how:'八戸沖が本場。船釣り中心、港でも夜に狙える。'},
+  {n:'ホッケ', s:'春・秋', season:false, bait:'サビキ、切り身', how:'日本海側・津軽海峡。群れで港に入ることも。'},
+  {n:'カサゴ', s:'周年', season:false, bait:'ワーム、ブラクリ', how:'穴釣り・根回り。足元を丁寧に。'},
+  {n:'サケ', s:'秋（河川は要許可確認）', season:false, bait:'浮きルアー', how:'沿岸・河口。漁業権や規制を必ず確認すること。'},
+  {n:'マダラ', s:'冬', season:true, bait:'ジグ、タラ釣り仕掛け', how:'冬の日本海・太平洋。深場の船釣りが中心。'},
+  {n:'ミズダコ', s:'秋〜冬', season:false, bait:'タコエギ、タコジグ', how:'港の岸壁際。根掛かりに注意してボトムを探る。'}
+];
+var KNOTS = [
+  {n:'FGノット', d:'PEラインとリーダーの結束の定番。編み込み＋ハーフヒッチで仕上げ、ガイド抜けが良い。'},
+  {n:'パロマーノット', d:'強度が高く簡単。ラインを二重にしてフックに通し、結んで輪にフックを通す。'},
+  {n:'ユニノット', d:'汎用性の高い結び。サルカンやフック、ライン同士の結束にも使える。'},
+  {n:'クリンチノット', d:'基本の結び。フックのアイに通して5〜6回巻き、輪に通して締める。締める前に濡らすのがコツ。'},
+  {n:'電車結び', d:'ライン同士を真っ直ぐつなぐ結び。それぞれ反対側のラインにユニノットを作り、引き締める。'}
+];
+var CHECKS = ['ロッド・リール','ライン・リーダーの傷チェック','ルアー・仕掛けケース','エサ','タモ・フィッシュグリップ','プライヤー・ハサミ','ライフジャケット','ヘッドライト','クーラーボックス・氷','タオル・飲み物','ゴミ袋','スマホ充電・防水ケース'];
+
+/* 状態（この端末の localStorage に保存） */
+var LS_KEY = 'aomori-tsuri-v1';
+var state = { spot: SPOTS[0], catches: [], mySpots: [], tackles: [], checks: {} };
+try {
+  var saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+  if (saved) {
+    if (Array.isArray(saved.catches)) state.catches = saved.catches;
+    if (Array.isArray(saved.mySpots)) state.mySpots = saved.mySpots;
+    if (Array.isArray(saved.tackles)) state.tackles = saved.tackles;
+    if (saved.checks && typeof saved.checks === 'object') state.checks = saved.checks;
+    if (saved.spotName) { for (var si=0; si<SPOTS.length; si++) { if (SPOTS[si].name===saved.spotName) state.spot = SPOTS[si]; } }
+  }
+} catch(e) {}
+function saveState(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ catches: state.catches, mySpots: state.mySpots, tackles: state.tackles, checks: state.checks, spotName: state.spot ? state.spot.name : null })); } catch(e) {}
+}
+var $ = function(id){ return document.getElementById(id); };
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function localDateStr(d){ var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0'); return y+'-'+m+'-'+dd; }
+function parseLocalDate(s){ if(!s) return null; var p=String(s).split('-'); if(p.length!==3) return null; var d=new Date(+p[0], +p[1]-1, +p[2]); return isNaN(d.getTime())? null : d; }
+function toast(msg){ var t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show')},2200); }
+
+/* ================= タブ ================= */
+document.querySelectorAll('nav.tabs button').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('nav.tabs button').forEach(function(x){x.setAttribute('aria-selected','false')});
+    b.setAttribute('aria-selected','true');
+    document.querySelectorAll('main section').forEach(function(s){s.classList.remove('on')});
+    $('tab-'+b.dataset.tab).classList.add('on');
+    window.scrollTo({top:0});
+  });
+});
+
+/* ================= 月齢・潮 ================= */
+function moonAge(date){
+  var synodic = 29.53058867;
+  var known = Date.UTC(2000,0,6,18,14)/86400000;
+  var d = date.getTime()/86400000;
+  var age = (d - known) % synodic; if(age<0) age+=synodic;
+  return age;
+}
+function tideName(age){
+  if(age<1.5||age>=28) return '大潮';
+  if(age<5) return '中潮'; if(age<8) return '小潮'; if(age<10.5) return '長潮'; if(age<12.5) return '若潮';
+  if(age<16.5) return '大潮'; if(age<20) return '中潮'; if(age<23) return '小潮'; if(age<25.5) return '長潮'; return '若潮';
+}
+function moonName(age){
+  if(age<1.5||age>=28.5) return '新月'; if(age<6.5) return '三日月〜上弦'; if(age<9) return '上弦';
+  if(age<14) return '満ちる月'; if(age<16.5) return '満月'; if(age<22) return '欠ける月'; if(age<24) return '下弦'; return '有明月';
+}
+(function(){
+  var now = new Date();
+  $('todayLabel').textContent = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日（'+'日月火水木金土'[now.getDay()]+'）';
+  var age = moonAge(now);
+  $('tideType').textContent = tideName(age)+' の日';
+  $('moonAge').textContent = age.toFixed(1);
+  $('moonName').textContent = moonName(age);
+  var illum = Math.round((1-Math.cos(2*Math.PI*age/29.53058867))/2*100);
+  $('wMoon').textContent = illum+'%';
+})();
+
+/* ================= 天気（Open-Meteo） ================= */
+var WMO = {0:'晴れ',1:'晴れ時々曇り',2:'曇り時々晴れ',3:'曇り',45:'霧',48:'霧',51:'小雨',53:'小雨',55:'雨',61:'雨',63:'雨',65:'大雨',66:'雨',67:'雨',71:'雪',73:'雪',75:'大雪',77:'雪',80:'にわか雨',81:'にわか雨',82:'激しいにわか雨',85:'にわか雪',86:'にわか雪',95:'雷雨',96:'雷雨',99:'雷雨'};
+var DIR = ['北','北北東','北東','東北東','東','東南東','南東','南南東','南','南南西','南西','西南西','西','西北西','北西','北北西'];
+function fmtTime(iso){ if(!iso) return '–'; return iso.slice(11,16); }
+function loadWeather(spot){
+  $('condTitle').textContent = spot.name+'（'+spot.area+'）のコンディション';
+  $('condTime').textContent = '取得中…';
+  var fUrl = 'https://api.open-meteo.com/v1/forecast?latitude='+spot.lat+'&longitude='+spot.lon+'&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m&hourly=temperature_2m&daily=sunrise,sunset&timezone=Asia%2FTokyo&forecast_days=1';
+  var mUrl = 'https://marine-api.open-meteo.com/v1/marine?latitude='+spot.lat+'&longitude='+spot.lon+'&hourly=wave_height&timezone=Asia%2FTokyo&forecast_days=1';
+  Promise.all([
+    fetch(fUrl).then(function(r){return r.json()}),
+    fetch(mUrl).then(function(r){return r.json()}).catch(function(){return null})
+  ]).then(function(res){
+    var f = res[0], m = res[1];
+    var c = f.current||{};
+    $('wTemp').textContent = (c.temperature_2m!=null? c.temperature_2m+'℃':'–');
+    $('wWeather').textContent = WMO[c.weather_code]||'–';
+    $('wWind').textContent = (c.wind_speed_10m!=null? c.wind_speed_10m+' km/h '+(DIR[Math.round((c.wind_direction_10m||0)/22.5)%16]):'–');
+    if(f.daily){ $('wSun').textContent = fmtTime(f.daily.sunrise[0])+' / '+fmtTime(f.daily.sunset[0]); }
+    var waveNow = null;
+    if(m && m.hourly && m.hourly.wave_height){
+      var h = new Date().getHours(); waveNow = m.hourly.wave_height[h];
+      $('wWave').textContent = (waveNow!=null? waveNow+' m':'–');
+    } else { $('wWave').textContent = '取得不可'; }
+    $('condTime').textContent = 'Open-Meteo 実データ';
+    drawChart(f.hourly ? f.hourly.temperature_2m : null, m && m.hourly ? m.hourly.wave_height : null);
+  }).catch(function(){
+    $('condTime').textContent = '取得できませんでした';
+    $('condNote').textContent = '通信が必要です。電波のある場所でページを再読み込みしてください。潮の種類と月齢は通信なしでも表示されます。';
+  });
+}
+function drawChart(temps, waves){
+  var box = $('chart24'); if(!temps && !waves){ box.innerHTML='<p class="muted">データなし</p>'; return; }
+  var W=640,H=150,P=28, maxW=1, maxT=1, minT=0;
+  if(waves){ waves.forEach(function(v){ if(v!=null&&v>maxW)maxW=v; }); }
+  if(temps){ temps.forEach(function(v){ if(v>maxT)maxT=v; if(v<minT)minT=v; }); }
+  function pts(arr, max, min){
+    if(!arr) return '';
+    return arr.map(function(v,i){ if(v==null) return ''; var x=P+i*(W-2*P)/23; var y=H-22-((v-min)/(max-min||1))*(H-48); return x.toFixed(1)+','+y.toFixed(1); }).filter(Boolean).join(' ');
+  }
+  var s = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto" role="img" aria-label="24時間の波と気温のグラフ">';
+  s += '<line x1="'+P+'" y1="'+(H-22)+'" x2="'+(W-P)+'" y2="'+(H-22)+'" stroke="currentColor" opacity=".25"/>';
+  for(var h=0;h<24;h+=6){ var x=P+h*(W-2*P)/23; s+='<text x="'+x+'" y="'+(H-6)+'" font-size="10" fill="currentColor" opacity=".6" text-anchor="middle">'+h+'時</text>'; }
+  if(waves) s += '<polyline fill="none" stroke="#0e6b7a" stroke-width="2.5" points="'+pts(waves,maxW,0)+'"/>';
+  if(temps) s += '<polyline fill="none" stroke="#d94f30" stroke-width="2" stroke-dasharray="5 3" points="'+pts(temps,maxT,minT)+'"/>';
+  s += '<text x="'+P+'" y="14" font-size="11" fill="#0e6b7a">― 波 (m)</text><text x="'+(P+70)+'" y="14" font-size="11" fill="#d94f30">- - 気温 (℃)</text>';
+  s += '</svg>';
+  box.innerHTML = s;
+}
+
+/* スポットチップ */
+SPOTS.forEach(function(sp,i){
+  var b=document.createElement('button'); b.className='chip'; b.textContent=sp.name;
+  b.setAttribute('aria-pressed', sp.name===state.spot.name?'true':'false');
+  b.addEventListener('click', function(){
+    document.querySelectorAll('#spotChips .chip').forEach(function(x){x.setAttribute('aria-pressed','false')});
+    b.setAttribute('aria-pressed','true'); state.spot=sp; saveState(); loadWeather(sp); renderSpots();
+  });
+  $('spotChips').appendChild(b);
+});
+loadWeather(state.spot);
+
+/* ================= タイマー ================= */
+var tSec=0, tRun=null;
+function tDraw(){ var h=String(Math.floor(tSec/3600)).padStart(2,'0'), m=String(Math.floor(tSec%3600/60)).padStart(2,'0'), s=String(tSec%60).padStart(2,'0'); $('timerDisp').textContent=h+':'+m+':'+s; }
+$('timerStart').addEventListener('click', function(){ if(tRun) return; tRun=setInterval(function(){tSec++; tDraw();},1000); toast('タイマーを開始しました'); });
+$('timerStop').addEventListener('click', function(){ clearInterval(tRun); tRun=null; });
+$('timerReset').addEventListener('click', function(){ clearInterval(tRun); tRun=null; tSec=0; tDraw(); });
+
+/* ================= 釣果ログ ================= */
+var fSel=$('fSpecies'); FISH.forEach(function(f){ var o=document.createElement('option'); o.textContent=f.n; fSel.appendChild(o); });
+var sSel=$('fSpot'); SPOTS.forEach(function(sp){ var o=document.createElement('option'); o.textContent=sp.name; sSel.appendChild(o); });
+$('fDate').value = localDateStr(new Date());
+function renderCatches(){
+  var box=$('catchList');
+  var fltFrom = $('fltFrom') ? $('fltFrom').value : '';
+  var fltTo = $('fltTo') ? $('fltTo').value : '';
+  var list = state.catches.map(function(c,i){ return {c:c, idx:i}; });
+  if(fltFrom) list = list.filter(function(x){ return x.c.date >= fltFrom; });
+  if(fltTo) list = list.filter(function(x){ return x.c.date <= fltTo; });
+  if(!state.catches.length){ box.innerHTML='<div class="card"><p class="muted" style="margin:0">まだ記録がありません。上のフォームから最初の1匹を記録しましょう。</p></div>'; }
+  else if(!list.length){ box.innerHTML='<div class="card"><p class="muted" style="margin:0">この期間の記録はありません。期間を変えるか「期間をクリア」を押してください。</p></div>'; }
+  else{
+    var rows = list.slice().reverse().map(function(x){
+      var c = x.c;
+      return '<tr><td>'+esc(c.date)+'</td><td><b>'+esc(c.species)+'</b></td><td class="num">'+(c.size||'–')+'</td><td class="num">'+(c.weight||'–')+'</td><td>'+esc(c.spot)+'<br><span class="muted">'+esc(c.bait||'')+' '+esc(c.memo||'')+'</span></td><td><button class="btn danger small" data-del="'+x.idx+'" aria-label="'+esc(c.species)+'の記録を削除">削除</button></td></tr>';
+    }).join('');
+    box.innerHTML='<div class="card" style="overflow-x:auto"><table><thead><tr><th>日付</th><th>魚種</th><th class="num">cm</th><th class="num">g</th><th>ポイント・詳細</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    box.querySelectorAll('[data-del]').forEach(function(b){ b.addEventListener('click', function(){ if(!confirm('この釣果の記録を削除しますか？')) return; state.catches.splice(+b.dataset.del,1); saveState(); renderCatches(); toast('記録を削除しました'); }); });
+  }
+  /* 集計 */
+  $('sumCount').textContent = state.catches.length;
+  var best=null; state.catches.forEach(function(c){ if(c.size && (!best || c.size>best.size)) best=c; });
+  $('sumBest').textContent = best? best.species+' '+best.size+'cm' : '–';
+  var kinds={}; state.catches.forEach(function(c){ kinds[c.species]=(kinds[c.species]||0)+1; });
+  $('sumSpecies').textContent = Object.keys(kinds).length;
+  var rank = Object.keys(kinds).sort(function(a,b){return kinds[b]-kinds[a]});
+  $('rankBox').innerHTML = rank.length? rank.map(function(k,i){ return '<p style="margin:4px 0"><b>'+(i+1)+'位</b> '+esc(k)+' — '+kinds[k]+'匹</p>'; }).join('') : '<p class="muted" style="margin:0">まだ記録がありません。</p>';
+  renderSpots();
+}
+$('catchForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  if(!$('fDate').value){ toast('日付を入力してください'); return; }
+  state.catches.push({ date:$('fDate').value, species:$('fSpecies').value, size:parseFloat($('fSize').value)||null,
+    weight:parseInt($('fWeight').value,10)||null, spot:$('fSpot').value, bait:$('fBait').value.trim(), tackle:$('fTackle').value.trim(), memo:$('fMemo').value.trim() });
+  saveState(); renderCatches(); toast('釣果を記録しました');
+  e.target.reset(); $('fDate').value = localDateStr(new Date());
+});
+$('fltFrom').addEventListener('change', renderCatches);
+$('fltTo').addEventListener('change', renderCatches);
+$('fltClear').addEventListener('click', function(){ $('fltFrom').value=''; $('fltTo').value=''; renderCatches(); });
+renderCatches();
+
+/* ================= ポイント ================= */
+function spotCard(sp, mine, idx){
+  var cnt = state.catches.filter(function(c){return c.spot===sp.name}).length;
+  var map = 'https://www.google.com/maps/search/?api=1&query='+sp.lat+','+sp.lon;
+  return '<div class="card"><div class="row" style="justify-content:space-between"><b>'+esc(sp.name)+'</b><span class="tag">'+esc(sp.area||'自分のポイント')+'</span></div>'
+    +'<p style="margin:6px 0">'+esc(sp.note||sp.memo||'')+'</p>'
+    +'<p class="muted" style="margin:4px 0">ここでの釣果：'+cnt+'件 ／ 緯度 '+sp.lat+'・経度 '+sp.lon+'</p>'
+    +'<div class="row"><a class="btn small" style="text-decoration:none;display:inline-block" target="_blank" rel="noopener" href="'+map+'">地図を開く</a>'
+    +(mine? '<button class="btn danger small" data-mdel="'+idx+'">削除</button>':'')+'</div></div>';
+}
+function renderSpots(){
+  var cur=$('fSpot').value; $('fSpot').innerHTML=''; SPOTS.concat(state.mySpots).forEach(function(sp){ var o=document.createElement('option'); o.textContent=sp.name; $('fSpot').appendChild(o); }); if(cur) $('fSpot').value=cur;
+  $('presetSpots').innerHTML = SPOTS.map(function(sp){ return spotCard(sp,false,0); }).join('');
+  $('mySpots').innerHTML = state.mySpots.length? state.mySpots.map(function(sp,i){ return spotCard(sp,true,i); }).join('') : '<div class="card"><p class="muted" style="margin:0">自分のポイントはまだありません。</p></div>';
+  $('mySpots').querySelectorAll('[data-mdel]').forEach(function(b){ b.addEventListener('click', function(){ if(!confirm('このポイントを削除しますか？')) return; state.mySpots.splice(+b.dataset.mdel,1); saveState(); renderSpots(); toast('ポイントを削除しました'); }); });
+}
+$('mySpotForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  state.mySpots.push({ name:$('pName').value.trim(), area:$('pArea').value.trim(), lat:parseFloat($('pLat').value)||0, lon:parseFloat($('pLon').value)||0, memo:$('pMemo').value.trim() });
+  saveState(); renderSpots(); toast('ポイントを追加しました'); e.target.reset();
+});
+$('gpsBtn').addEventListener('click', function(){
+  if(!navigator.geolocation){ toast('この端末では位置情報が使えません'); return; }
+  navigator.geolocation.getCurrentPosition(function(p){ $('pLat').value=p.coords.latitude.toFixed(4); $('pLon').value=p.coords.longitude.toFixed(4); toast('現在地を入力しました'); },
+    function(){ toast('位置情報を取得できませんでした'); });
+});
+renderSpots();
+
+/* ================= 図鑑 ================= */
+function renderFish(q){
+  $('fishList').innerHTML = FISH.filter(function(f){ return !q || f.n.includes(q) || f.how.includes(q) || f.bait.includes(q); }).map(function(f){
+    var now = new Date().getMonth()+1;
+    return '<div class="card"><div class="row" style="justify-content:space-between"><b>'+f.n+'</b><span>'+(f.season? '<span class="tag season">今が旬の目安</span>':'')+'<span class="tag">'+f.s+'</span></div>'
+      +'<p style="margin:6px 0">'+f.how+'</p><p class="muted" style="margin:0">エサ／ルアー：'+f.bait+'</p></div>';
+  }).join('') || '<p class="muted">見つかりませんでした。</p>';
+}
+$('fishSearch').addEventListener('input', function(){ renderFish(this.value.trim()); });
+renderFish('');
+$('knotList').innerHTML = KNOTS.map(function(k){ return '<details><summary>'+k.n+'</summary><p>'+k.d+'</p></details>'; }).join('');
+
+/* ================= タックル ================= */
+function renderTackles(){
+  var box=$('tackleList');
+  if(!state.tackles.length){ box.innerHTML='<div class="card"><p class="muted" style="margin:0">タックルはまだ登録されていません。</p></div>'; return; }
+  box.innerHTML = state.tackles.map(function(t,i){
+    var warn='';
+    if(t.maint && t.cycle){ var md=parseLocalDate(t.maint); var days= md? Math.floor((new Date().setHours(0,0,0,0)-md.getTime())/86400000) : 0; warn = days>=t.cycle? ' <span class="warn">メンテ目安を '+ (days-t.cycle) +' 日過ぎています（経過 '+days+' 日）</span>' : ' <span class="good">メンテまであと '+(t.cycle-days)+' 日</span>'; }
+    return '<div class="card"><div class="row" style="justify-content:space-between"><b>'+esc(t.name)+'</b><span class="tag">'+esc(t.kind)+'</span></div>'
+      +'<p class="muted" style="margin:4px 0">最終メンテ：'+esc(t.maint||'未記録')+'／周期：'+(t.cycle? t.cycle+'日':'—')+warn+'</p>'
+      +'<button class="btn danger small" data-tdel="'+i+'">削除</button></div>';
+  }).join('');
+  box.querySelectorAll('[data-tdel]').forEach(function(b){ b.addEventListener('click', function(){ if(!confirm('このタックルを削除しますか？')) return; state.tackles.splice(+b.dataset.tdel,1); saveState(); renderTackles(); toast('タックルを削除しました'); }); });
+}
+$('tackleForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  state.tackles.push({ name:$('tName').value.trim(), kind:$('tKind').value, maint:$('tMaint').value, cycle:parseInt($('tCycle').value,10)||null });
+  saveState(); renderTackles(); toast('タックルを追加しました'); e.target.reset();
+});
+renderTackles();
+var cl=$('checkList');
+CHECKS.forEach(function(c,i){ var li=document.createElement('li'); li.textContent=c; li.setAttribute('role','checkbox'); li.tabIndex=0;
+  var on = !!state.checks[c]; if(on) li.classList.add('done'); li.setAttribute('aria-checked', on?'true':'false');
+  function tog(){ li.classList.toggle('done'); var d=li.classList.contains('done'); li.setAttribute('aria-checked', d?'true':'false'); state.checks[c]=d; saveState(); }
+  li.addEventListener('click', tog); li.addEventListener('keydown', function(e){ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); tog(); } });
+  cl.appendChild(li); });
+$('checkReset').addEventListener('click', function(){ state.checks={}; saveState(); cl.querySelectorAll('li').forEach(function(li){ li.classList.remove('done'); li.setAttribute('aria-checked','false'); }); });
+
+/* ================= PWA ================= */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(){ /* sw.js が無い環境では無視 */ });
+  });
+}
+</script>
 </body>
 </html>

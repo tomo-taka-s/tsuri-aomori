@@ -1,17 +1,1 @@
-{
-  "name": "青森 釣り潮見",
-  "short_name": "釣り潮見",
-  "description": "青森県の港・釣り場ごとに、潮の動きと釣れやすい時間帯を時系列で表示します。",
-  "lang": "ja",
-  "start_url": "./",
-  "scope": "./",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#0b2f45",
-  "theme_color": "#0b2f45",
-  "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
-}
+{"background_color":"#0d1f2d","description":"青森県専用の全部入り釣りアプリ。釣果ログ・潮汐と天気・ポイント・魚種図鑑・タックル管理・時合タイマー。","display":"standalone","icons":[{"purpose":"any","sizes":"192x192","src":"./assets/icon-192.png","type":"image/png"},{"purpose":"any","sizes":"512x512","src":"./assets/icon-512.png","type":"image/png"},{"purpose":"maskable","sizes":"512x512","src":"./assets/icon-512.png","type":"image/png"}],"lang":"ja","name":"青森釣りアプリ","orientation":"portrait","scope":"./","short_name":"青森釣り","start_url":"./index.html","theme_color":"#0d1f2d"}
